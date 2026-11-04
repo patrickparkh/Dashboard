@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 /* =========================================================
    COLOR · 다크블루 / 로열블루 / 포인트(민트)
@@ -381,7 +383,78 @@ tr.pinned{background:#f6f9ff}
 .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
 .reveal.in{opacity:1;transform:none}
 
+/* ---------- Business trip map ---------- */
+.trip-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:22px;align-items:stretch}
+.trip-map-wrap{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);min-height:500px;background:#dfe7f3}
+.trip-map{position:absolute;inset:0;z-index:1}
+.leaflet-container{font-family:"Nanum Gothic","Malgun Gothic",sans-serif}
+.trip-lock{position:absolute;inset:0;z-index:5;display:grid;place-items:center;text-align:center;background:rgba(8,23,51,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff;padding:24px}
+.trip-lock .state-icon{background:rgba(255,255,255,.12);color:var(--point);margin-bottom:14px}
+.trip-lock h3{margin:0 0 6px;font-size:20px}
+.trip-lock p{color:#c6d3ec;margin:0 0 18px;font-size:14px}
+.trip-lock .actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.map-legend{position:absolute;left:14px;bottom:14px;z-index:4;background:rgba(255,255,255,.95);border-radius:10px;padding:8px 13px;display:flex;gap:14px;font-size:12px;font-weight:800;color:var(--navy-900);box-shadow:var(--shadow)}
+.map-legend span{display:flex;align-items:center;gap:6px}
+.map-legend i{width:11px;height:11px;border-radius:50%}
+.lg-on{background:var(--navy-900);box-shadow:0 0 0 2px var(--point)}
+.lg-soon{background:var(--royal)}
+.trip-side{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;height:500px;overflow:hidden}
+.trip-side-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.trip-tabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px}
+.trip-tabs button{border:0;background:none;padding:7px 12px;border-radius:8px;font-size:13px;font-weight:800;color:var(--muted)}
+.trip-tabs button.active{background:#fff;color:var(--navy-900);box-shadow:0 2px 6px rgba(8,23,51,.1)}
+.trip-tabs b{color:var(--royal);margin-left:3px}
+.trip-list{list-style:none;margin:0;padding:8px;overflow:auto;flex:1}
+.trip-item{display:flex;align-items:center;gap:2px;border-radius:12px;transition:.15s}
+.trip-item:hover{background:var(--bg)}
+.trip-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;background:none;border:0;padding:11px 10px;text-align:left}
+.trip-av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;flex-shrink:0;background:var(--royal-100);color:var(--royal)}
+.trip-av.now{background:var(--navy-900);color:var(--point)}
+.trip-info{flex:1;min-width:0;display:flex;flex-direction:column;font-size:14px;line-height:1.45}
+.trip-who b{color:var(--navy-900)}
+.trip-who small{color:var(--muted);font-size:12px;margin-left:4px}
+.trip-place,.trip-date{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trip-place{font-weight:700;color:var(--royal);font-size:13px}
+.trip-date{font-size:12px;color:var(--muted)}
+.trip-badge{font-size:11px;font-weight:800;padding:3px 8px;border-radius:20px;flex-shrink:0}
+.trip-badge.now{background:#e4f8f1;color:#0c8a68}
+.trip-badge.soon{background:var(--royal-100);color:var(--royal)}
+.trip-edit{border:0;background:none;color:var(--muted);font-size:12px;padding:6px 8px;text-decoration:underline;flex-shrink:0}
+.trip-edit:hover{color:var(--royal)}
+.trip-empty{padding:44px 16px;text-align:center;color:var(--muted);font-size:14px}
+.trip-empty .btn{margin-top:14px}
+.tmk{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;background:var(--royal);border:3px solid #fff;box-shadow:0 4px 12px rgba(8,23,51,.35);position:relative;font-family:"Nanum Gothic",sans-serif}
+.tmk.on{background:var(--navy-900);color:var(--point)}
+.tmk.on:before{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid var(--point);animation:ping 1.9s ease-out infinite}
+.tmk.pick{background:var(--point);color:var(--navy-900)}
+@keyframes ping{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.35);opacity:0}}
+.tpop{min-width:200px}
+.tpop>b{font-size:14px;color:var(--navy-900)}
+.tpop-row{margin-top:8px;font-size:13px;color:var(--ink)}
+.tpop-row small{color:var(--muted)}
+.tpop-date{font-size:12px;color:var(--muted);padding-left:14px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--royal)}
+.dot.now{background:var(--point-600)}
+.modal-box.wide{width:min(640px,100%)}
+.geo-search{display:flex;gap:6px}
+.geo-results{list-style:none;padding:0;margin:8px 0 0;border:1px solid var(--line);border-radius:10px;max-height:170px;overflow:auto}
+.geo-results:empty{display:none}
+.geo-results li{border-bottom:1px solid var(--line);font-size:13px}
+.geo-results li:last-child{border-bottom:0}
+.geo-results button{width:100%;text-align:left;border:0;background:#fff;padding:9px 12px}
+.geo-results button:hover{background:var(--royal-100)}
+.geo-results .muted{padding:9px 12px}
+.preset-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.preset-chips button{border:1px solid var(--line);background:#fff;border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:700}
+.preset-chips button:hover{border-color:var(--royal);color:var(--royal)}
+.pick-map{height:260px;border-radius:12px;border:1px solid var(--line);position:relative;z-index:0}
+.pick-info{font-size:12.5px;color:var(--muted);margin:6px 0 16px}
+.pick-info b{color:var(--royal)}
+.trip-form-actions{display:flex;gap:8px;margin-top:8px}
+.trip-form-actions .btn-primary{margin-left:auto}
+
 @media (prefers-reduced-motion:reduce){
+  .tmk.on:before{animation:none}
   html{scroll-behavior:auto}
   .blob,.hero-tag i,.scroll-cue span:after{animation:none}
   .reveal{opacity:1;transform:none;transition:none}
@@ -405,6 +478,9 @@ tr.pinned{background:#f6f9ff}
   .tl-date{text-align:left;order:4;grid-column:1 / -1}
   .footer-grid{grid-template-columns:1fr 1fr}
   .cta-band{flex-direction:column;align-items:flex-start;padding:40px 34px}
+  .trip-layout{grid-template-columns:1fr}
+  .trip-map-wrap{min-height:380px}
+  .trip-side{height:auto;max-height:440px}
 }
 @media(max-width:680px){
   .wrap,.wrap.narrow{width:calc(100% - 32px)}
@@ -455,6 +531,7 @@ tr.pinned{background:#f6f9ff}
         <a href="#/free" data-nav="free">자유게시판</a>
         <a href="#/archive" data-nav="archive">자료실</a>
         <a href="#/gallery" data-nav="gallery">갤러리</a>
+        <a href="#/" data-action="scroll" data-target="trips">출장 현황</a>
       </nav>
       <div class="auth-area" id="authArea"></div>
     </div>
@@ -570,6 +647,41 @@ tr.pinned{background:#f6f9ff}
           <li>자료를 인용할 때는 출처와 작성 부서를 밝힙니다.</li>
           <li>서로의 의견을 존중하고 건설적으로 토론합니다.</li>
         </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUSINESS TRIPS -->
+  <section class="section white" id="trips">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">Business Trip</span>
+        <h2>구성원 출장 현황</h2>
+        <p>지금 누가 어디에서 프로젝트를 위해 뛰고 있는지 지도로 확인하세요. 진행 중이거나 예정된 출장이 표시됩니다.</p>
+      </div>
+      <div class="trip-layout reveal">
+        <div class="trip-map-wrap">
+          <div id="tripMap" class="trip-map" aria-label="구성원 출장지 지도"></div>
+          <div class="map-legend"><span><i class="lg-on"></i>출장 중</span><span><i class="lg-soon"></i>예정</span></div>
+          <div class="trip-lock" id="tripLock" hidden>
+            <div>
+              <div class="state-icon" style="margin:0 auto 14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg></div>
+              <h3>회원에게만 공개됩니다</h3>
+              <p>구성원 위치 정보 보호를 위해 로그인한 회원만 볼 수 있습니다.</p>
+              <div class="actions"><button class="btn btn-point" type="button" data-action="open-login">로그인</button><button class="btn btn-ghost" type="button" data-action="open-signup">회원가입</button></div>
+            </div>
+          </div>
+        </div>
+        <aside class="trip-side">
+          <div class="trip-side-head">
+            <div class="trip-tabs" role="tablist">
+              <button type="button" class="active" data-trip-filter="now">출장 중<b id="cntNow">0</b></button>
+              <button type="button" data-trip-filter="soon">예정<b id="cntSoon">0</b></button>
+            </div>
+            <button class="btn btn-primary btn-sm" type="button" data-action="open-trip" data-member-only hidden>+ 출장 등록</button>
+          </div>
+          <ul class="trip-list" id="tripList"><li class="trip-empty">불러오는 중…</li></ul>
+        </aside>
       </div>
     </div>
   </section>
@@ -734,6 +846,39 @@ tr.pinned{background:#f6f9ff}
   </div>
 </div>
 
+<!-- ================= TRIP MODAL ================= -->
+<div class="modal" id="tripModal" hidden role="dialog" aria-modal="true" aria-labelledby="tripTitle">
+  <div class="modal-dim" data-action="close-trip"></div>
+  <div class="modal-box wide">
+    <div class="modal-top no-tabs">
+      <button class="modal-close" type="button" data-action="close-trip" aria-label="닫기">×</button>
+      <h2 id="tripTitle">출장 등록</h2>
+      <p>출장지를 검색하거나 지도를 클릭해 위치를 지정하세요.</p>
+    </div>
+    <form class="auth-panel" id="tripForm" novalidate>
+      <div class="form-error" data-error></div>
+      <div class="field">
+        <label for="geoQ">위치 검색</label>
+        <div class="geo-search"><input class="input" id="geoQ" placeholder="예) 울산 동구, 창원 성산구, Rotterdam"><button class="btn btn-line" type="button" id="geoBtn">검색</button></div>
+        <ul class="geo-results" id="geoResults"></ul>
+        <div class="preset-chips" id="presetChips"></div>
+      </div>
+      <div id="pickMap" class="pick-map" aria-label="출장 위치 선택 지도"></div>
+      <div class="pick-info" id="pickInfo"></div>
+      <div class="field"><label for="tPlace">출장지 이름 <span class="req">*</span></label><input class="input" id="tPlace" name="place" maxlength="100" required placeholder="예) 울산 시험동, 고객사 A 공장"></div>
+      <div class="form-row">
+        <div class="field"><label for="tStart">시작일 <span class="req">*</span></label><input class="input" id="tStart" type="date" name="start" required></div>
+        <div class="field"><label for="tEnd">종료일 <span class="req">*</span></label><input class="input" id="tEnd" type="date" name="end" required></div>
+      </div>
+      <div class="field"><label for="tPurpose">출장 목적</label><input class="input" id="tPurpose" name="purpose" maxlength="200" placeholder="예) 엔진 시험 입회, 고객사 기술 협의"></div>
+      <div class="trip-form-actions">
+        <button class="btn btn-danger" type="button" id="tripDelete" hidden>삭제</button>
+        <button class="btn btn-primary" type="submit">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -744,7 +889,18 @@ tr.pinned{background:#f6f9ff}
 const SUPABASE_URL = "https://qapmdoxjmjnkycukjswp.supabase.co";
 const SUPABASE_KEY = "sb_publishable_AKIAvzg-Xm2QHOrhAJqhMg_AfpFPNiw";
 const SITE = "h2e";                                  // 사이트 접두어 (SQL 스크립트와 동일해야 함)
-const TB = { profiles:`${SITE}_profiles`, posts:`${SITE}_posts`, comments:`${SITE}_comments` };
+const TB = { profiles:`${SITE}_profiles`, posts:`${SITE}_posts`, comments:`${SITE}_comments`, trips:`${SITE}_trips` };
+
+/* 출장 등록 시 빠른 선택 위치 (자주 가는 곳으로 자유롭게 수정하세요) */
+const TRIP_PRESETS = [
+  { name:"서울", lat:37.5665, lng:126.9780 },
+  { name:"판교", lat:37.3948, lng:127.1112 },
+  { name:"울산", lat:35.5384, lng:129.3114 },
+  { name:"창원", lat:35.2280, lng:128.6811 },
+  { name:"부산", lat:35.1796, lng:129.0756 },
+  { name:"거제", lat:34.8806, lng:128.6211 }
+];
+const MAP_HOME = { center:[36.2, 127.9], zoom:7 };   // 기본 지도 위치(대한민국)
 const BUCKET = `${SITE}-files`;
 const MAX_FILE_MB = 20;
 
@@ -975,13 +1131,21 @@ document.addEventListener("click", async e=>{
     await sb.auth.signOut();
     toast("로그아웃되었습니다.");
   }
+  if(a==="open-trip")  trips.openForm(null);
+  if(a==="close-trip") trips.closeForm();
   if(a==="scroll"){
+    e.preventDefault();
+    closeMobileMenu();
     const id = el.dataset.target;
     if($("#home").hidden){ pendingScroll=id; location.hash="#/"; }
     else document.getElementById(id)?.scrollIntoView({behavior:"smooth"});
   }
 });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("#authModal").hidden) closeModal(); });
+document.addEventListener("keydown", e=>{
+  if(e.key!=="Escape") return;
+  if(!$("#tripModal").hidden) trips.closeForm();
+  else if(!$("#authModal").hidden) closeModal();
+});
 
 $("#menuToggle").addEventListener("click", ()=>{
   const open = $("#headerMenu").classList.toggle("open");
@@ -1033,6 +1197,7 @@ function showHome(){
   if(pendingScroll){ const id=pendingScroll; pendingScroll=null; setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:"smooth"}),30); }
   else window.scrollTo(0,0);
   loadHomeFeeds();
+  trips.refresh();
 }
 
 async function loadHomeFeeds(){
@@ -1476,6 +1641,234 @@ const hero = (()=>{
   section.addEventListener("pointermove", e=>{ const r=canvas.getBoundingClientRect(); mouse.x=e.clientX-r.left; mouse.y=e.clientY-r.top; });
   section.addEventListener("pointerleave", ()=>{ mouse.x=mouse.y=-9999; });
   return { resize };
+})();
+
+/* =========================================================
+   11-2. 구성원 출장 현황 지도 (Leaflet + OpenStreetMap)
+   ========================================================= */
+const trips = (()=>{
+  let map=null, layer=null, data=[], filter="now";
+  const markers = new Map();
+  let pickMap=null, pickMarker=null, picked=null, editing=null, geoCache=[];
+  const hasL = () => !!window.L;
+  const today = () => { const d=new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
+  const statusOf = t => t.start_date <= today() ? "now" : "soon";
+  const dday = t => Math.round((new Date(t.start_date+"T00:00:00") - new Date(today()+"T00:00:00"))/86400000);
+  const md = s => s.slice(5).replace("-",".");
+  const range = t => `${md(t.start_date)} ~ ${md(t.end_date)}`;
+  const initial = n => (String(n||"?").trim().charAt(0) || "?");
+  const canEditTrip = t => !!state.profile && (t.member_id===state.profile.id || isAdmin());
+  const tiles = () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom:18, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+  });
+  const list = () => $("#tripList");
+
+  function ensureMap(){
+    if(map || !hasL()) return;
+    map = L.map("tripMap", { scrollWheelZoom:false, worldCopyJump:true }).setView(MAP_HOME.center, MAP_HOME.zoom);
+    tiles().addTo(map);
+    layer = L.layerGroup().addTo(map);
+    map.on("focus click", ()=>map.scrollWheelZoom.enable());
+    map.on("blur mouseout", ()=>map.scrollWheelZoom.disable());
+  }
+
+  async function refresh(){
+    if(!hasL()){ list().innerHTML = `<li class="trip-empty">지도 라이브러리를 불러오지 못했습니다.<br>네트워크를 확인해 주세요.</li>`; return; }
+    ensureMap();
+    setTimeout(()=>map.invalidateSize(), 60);
+    $("#tripLock").hidden = isMember();
+    if(!sb || !isMember()){
+      data = []; draw();
+      list().innerHTML = `<li class="trip-empty">출장 현황은 회원에게만 공개됩니다.<br>
+        ${state.session ? '<button class="btn btn-primary btn-sm" type="button" data-action="open-join">포털 가입 완료</button>'
+                        : '<button class="btn btn-primary btn-sm" type="button" data-action="open-login">로그인</button>'}</li>`;
+      return;
+    }
+    const { data:rows, error } = await sb.from(TB.trips).select("*").gte("end_date", today()).order("start_date");
+    if(error){
+      console.error(error);
+      const missing = error.code==="42P01" || error.code==="PGRST205" || /does not exist|schema cache/i.test(error.message||"");
+      list().innerHTML = `<li class="trip-empty">${missing ? "출장 테이블이 없습니다.<br>h2e_trips_setup.sql 을 실행해 주세요." : "출장 정보를 불러오지 못했습니다."}</li>`;
+      return;
+    }
+    data = rows || [];
+    draw();
+  }
+
+  function draw(){
+    layer.clearLayers(); markers.clear();
+    $("#cntNow").textContent  = data.filter(t=>statusOf(t)==="now").length;
+    $("#cntSoon").textContent = data.filter(t=>statusOf(t)==="soon").length;
+    const groups = new Map();
+    data.forEach(t=>{ const k=`${(+t.lat).toFixed(3)},${(+t.lng).toFixed(3)}`; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(t); });
+    groups.forEach(arr=>{
+      const on = arr.some(t=>statusOf(t)==="now");
+      const icon = L.divIcon({ className:"", iconSize:[34,34], iconAnchor:[17,17], popupAnchor:[0,-18],
+        html:`<div class="tmk ${on?"on":""}"><span>${arr.length>1 ? arr.length : esc(initial(arr[0].member_name))}</span></div>` });
+      const m = L.marker([arr[0].lat, arr[0].lng], { icon, title:arr[0].place_name, riseOnHover:true }).addTo(layer);
+      m.bindPopup(`<div class="tpop"><b>${esc(arr[0].place_name)}</b>${arr.map(t=>`
+        <div class="tpop-row"><span class="dot ${statusOf(t)}"></span><b>${esc(t.member_name||"-")}</b> <small>${esc(t.department||"")}</small>
+          <div class="tpop-date">${range(t)} · ${statusOf(t)==="now"?"출장 중":`D-${dday(t)}`}${t.purpose?`<br>${esc(t.purpose)}`:""}</div></div>`).join("")}</div>`);
+      arr.forEach(t=>markers.set(String(t.id), m));
+    });
+    if(data.length) map.fitBounds(L.latLngBounds(data.map(t=>[t.lat,t.lng])), { padding:[50,50], maxZoom:9 });
+    else map.setView(MAP_HOME.center, MAP_HOME.zoom);
+    if(isMember()) renderList();
+  }
+
+  function renderList(){
+    $$("[data-trip-filter]").forEach(b=>b.classList.toggle("active", b.dataset.tripFilter===filter));
+    const rows = data.filter(t=>statusOf(t)===filter);
+    if(!rows.length){
+      list().innerHTML = `<li class="trip-empty">${filter==="now" ? "현재 출장 중인 구성원이 없습니다." : "예정된 출장이 없습니다."}<br>
+        <button class="btn btn-line btn-sm" type="button" data-action="open-trip">내 출장 등록하기</button></li>`;
+      return;
+    }
+    list().innerHTML = rows.map(t=>`
+      <li class="trip-item">
+        <button class="trip-main" type="button" data-fly="${t.id}">
+          <span class="trip-av ${statusOf(t)}">${esc(initial(t.member_name))}</span>
+          <span class="trip-info">
+            <span class="trip-who"><b>${esc(t.member_name||"-")}</b><small>${esc(t.department||"")}</small></span>
+            <span class="trip-place">${esc(t.place_name)}</span>
+            <span class="trip-date">${range(t)}${t.purpose?` · ${esc(t.purpose)}`:""}</span>
+          </span>
+          <span class="trip-badge ${statusOf(t)}">${statusOf(t)==="now" ? "출장 중" : `D-${dday(t)}`}</span>
+        </button>
+        ${canEditTrip(t) ? `<button class="trip-edit" type="button" data-edit-trip="${t.id}">수정</button>` : ""}
+      </li>`).join("");
+  }
+
+  /* ---- 목록 이벤트 ---- */
+  $$("[data-trip-filter]").forEach(b=>b.addEventListener("click", ()=>{ filter=b.dataset.tripFilter; if(isMember()) renderList(); }));
+  $("#tripList").addEventListener("click", e=>{
+    const fly = e.target.closest("[data-fly]");
+    if(fly){
+      const t = data.find(x=>String(x.id)===fly.dataset.fly), m = markers.get(fly.dataset.fly);
+      if(t && m){ map.flyTo([t.lat,t.lng], Math.max(map.getZoom(), 10), { duration:.8 }); setTimeout(()=>m.openPopup(), 850); }
+      if(window.innerWidth <= 1000) $("#tripMap").scrollIntoView({ behavior:"smooth", block:"center" });
+      return;
+    }
+    const ed = e.target.closest("[data-edit-trip]");
+    if(ed) openForm(data.find(x=>String(x.id)===ed.dataset.editTrip));
+  });
+
+  /* ---- 등록/수정 폼 ---- */
+  const pickIcon = () => L.divIcon({ className:"", iconSize:[34,34], iconAnchor:[17,17], html:'<div class="tmk pick"><span>●</span></div>' });
+  function updateInfo(){
+    $("#pickInfo").innerHTML = picked
+      ? `선택한 위치: <b>${picked.lat.toFixed(4)}, ${picked.lng.toFixed(4)}</b>${picked.address?` · ${esc(excerpt(picked.address,70))}`:""} <span class="muted">(마커를 끌어 조정할 수 있어요)</span>`
+      : "지도를 클릭하거나 검색 결과·빠른 선택을 눌러 위치를 지정하세요.";
+  }
+  function setPick(lat, lng, address=null){
+    const nLng = ((lng + 180) % 360 + 360) % 360 - 180;
+    picked = { lat:+(+lat).toFixed(6), lng:+nLng.toFixed(6), address };
+    if(!pickMarker){
+      pickMarker = L.marker([lat, lng], { draggable:true, icon:pickIcon() }).addTo(pickMap);
+      pickMarker.on("dragend", ()=>{ const p=pickMarker.getLatLng(); setPick(p.lat, p.lng); });
+    }else pickMarker.setLatLng([lat, lng]);
+    updateInfo();
+  }
+  function fillPlace(name){ const f=$("#tripForm"); if(!f.place.value.trim() && name) f.place.value = name; }
+
+  function openForm(t){
+    if(!isMember()){ openModal(state.session ? "join" : "login"); return; }
+    if(!hasL()){ toast("지도 라이브러리를 불러오지 못했습니다.","error"); return; }
+    if(t && !canEditTrip(t)) return;
+    editing = t || null;
+    const f = $("#tripForm"); f.reset();
+    $("[data-error]", f).textContent = ""; $("#geoResults").innerHTML = ""; $("#geoQ").value = "";
+    $("#tripTitle").textContent = t ? "출장 정보 수정" : "출장 등록";
+    $("#tripDelete").hidden = !t;
+    f.place.value   = t?.place_name || "";
+    f.start.value   = t?.start_date || today();
+    f.end.value     = t?.end_date   || today();
+    f.purpose.value = t?.purpose    || "";
+    $("#tripModal").hidden = false;
+    document.body.classList.add("no-scroll");
+    if(!pickMap){
+      pickMap = L.map("pickMap", { worldCopyJump:true }).setView(MAP_HOME.center, 6);
+      tiles().addTo(pickMap);
+      pickMap.on("click", e=>setPick(e.latlng.lat, e.latlng.lng));
+    }
+    picked = null;
+    if(pickMarker){ pickMap.removeLayer(pickMarker); pickMarker = null; }
+    setTimeout(()=>{
+      pickMap.invalidateSize();
+      if(t){ setPick(t.lat, t.lng, t.address); pickMap.setView([t.lat, t.lng], 10); }
+      else pickMap.setView(MAP_HOME.center, 6);
+      updateInfo();
+      if(!t) $("#geoQ").focus();
+    }, 80);
+  }
+  function closeForm(){
+    $("#tripModal").hidden = true;
+    if($("#authModal").hidden) document.body.classList.remove("no-scroll");
+  }
+
+  $("#presetChips").innerHTML = TRIP_PRESETS.map((p,i)=>`<button type="button" data-preset="${i}">${esc(p.name)}</button>`).join("");
+  $("#presetChips").addEventListener("click", e=>{
+    const b = e.target.closest("[data-preset]"); if(!b) return;
+    const p = TRIP_PRESETS[+b.dataset.preset];
+    setPick(p.lat, p.lng, p.name); pickMap.setView([p.lat, p.lng], 11); fillPlace(p.name);
+  });
+
+  async function geoSearch(){
+    const q = $("#geoQ").value.trim(); if(!q) return;
+    const box = $("#geoResults");
+    box.innerHTML = `<li class="muted">검색 중…</li>`;
+    try{
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ko&q=${encodeURIComponent(q)}`);
+      if(!r.ok) throw new Error(r.status);
+      geoCache = await r.json();
+      box.innerHTML = geoCache.length
+        ? geoCache.map((g,i)=>`<li><button type="button" data-geo="${i}">${esc(g.display_name)}</button></li>`).join("")
+        : `<li class="muted">검색 결과가 없습니다. 지도를 직접 클릭해 주세요.</li>`;
+    }catch(err){
+      console.error(err);
+      box.innerHTML = `<li class="muted">위치 검색에 실패했습니다. 지도를 직접 클릭해 주세요.</li>`;
+    }
+  }
+  $("#geoBtn").addEventListener("click", geoSearch);
+  $("#geoQ").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); geoSearch(); } });
+  $("#geoResults").addEventListener("click", e=>{
+    const b = e.target.closest("[data-geo]"); if(!b) return;
+    const g = geoCache[+b.dataset.geo];
+    setPick(+g.lat, +g.lon, g.display_name); pickMap.setView([+g.lat, +g.lon], 12);
+    fillPlace(g.name || $("#geoQ").value.trim());
+    $("#geoResults").innerHTML = "";
+  });
+
+  $("#tripForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const f = e.currentTarget;
+    const place = f.place.value.trim(), start = f.start.value, end = f.end.value, purpose = f.purpose.value.trim();
+    if(!picked) return formError(f, "지도에서 출장 위치를 지정해 주세요.");
+    if(!place)  return formError(f, "출장지 이름을 입력해 주세요.");
+    if(!start || !end) return formError(f, "출장 기간을 입력해 주세요.");
+    if(end < start) return formError(f, "종료일이 시작일보다 빠를 수 없습니다.");
+    const payload = { place_name:place, address:picked.address||null, lat:picked.lat, lng:picked.lng,
+                      start_date:start, end_date:end, purpose:purpose||null };
+    await withBusy($("button[type=submit]", f), "저장 중…", async()=>{
+      const res = editing
+        ? await sb.from(TB.trips).update(payload).eq("id", editing.id)
+        : await sb.from(TB.trips).insert(payload);
+      if(res.error){ formError(f, res.error.message); return; }
+      closeForm();
+      toast(editing ? "출장 정보가 수정되었습니다." : "출장이 등록되었습니다.");
+      if(end >= today()) filter = start <= today() ? "now" : "soon";
+      refresh();
+    });
+  });
+
+  $("#tripDelete").addEventListener("click", async ()=>{
+    if(!editing || !confirm("이 출장 정보를 삭제할까요?")) return;
+    const { error } = await sb.from(TB.trips).delete().eq("id", editing.id);
+    if(error){ toast("삭제 실패: "+error.message, "error"); return; }
+    closeForm(); toast("출장 정보가 삭제되었습니다."); refresh();
+  });
+
+  return { refresh, openForm, closeForm };
 })();
 
 /* =========================================================
